@@ -117,15 +117,15 @@ import groovy.transform.Field
     DEPLOY_STATE_DIR    : '',                       // where the previous-version state is kept on the deploy host ('' = $HOME/.devsecops-deploy)
 
     // ---- registry: ecr | generic | none ----
-    REGISTRY_TYPE       : 'ecr',
-    AWS_REGION          : 'YOUR_AWS_REGION',        // e.g. eu-west-1
+    REGISTRY_TYPE       : 'none',
+    AWS_REGION          : '',        // e.g. eu-west-1
     ECR_REGISTRY        : '',                       // '' = derived from the AWS account of the credentials / IAM role
     ECR_REPOSITORY      : '',                       // empty = DOCKER_IMAGE
     ECR_CREATE_REPO     : false,                    // true = create the repository (scan on push + immutable tags) when missing
     AWS_CREDENTIALS_ID  : '',                       // Jenkins "AWS Credentials". '' = use the agent's IAM role (recommended)
     REGISTRY_URL        : '',                       // generic registry host, e.g. registry.example.com
     REGISTRY_REPOSITORY : '',                       // generic registry repository path. Empty = DOCKER_IMAGE
-    REGISTRY_CREDENTIALS_ID: 'registry-credentials',// Jenkins "Username with password" (generic registry only)
+    REGISTRY_CREDENTIALS_ID: '',// Jenkins "Username with password" (generic registry only)
 
     // ======================= 11. IIS DEPLOYMENT (Windows) =======================
     // WHERE TO DEPLOY - give the site name, the path, or both:
