@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "DevSecOps Demo App is Running!"
+    return "DevSecOps Demo App is Running! this deploy from scm poll "
 
 @app.route("/health")
 def health():
