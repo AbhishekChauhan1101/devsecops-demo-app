@@ -25,29 +25,29 @@ import groovy.transform.Field
 @Field Map CFG = [
 
     // ======================= 1. APPLICATION =======================
-    APP_NAME            : 'devsecops-demo',                 // letters, digits, . _ -   (used for names, backups, state folders)
+    APP_NAME            : 'my-app',                 // letters, digits, . _ -   (used for names, backups, state folders)
     APP_TYPE            : 'auto',                   // auto | dotnet | node | python | docker | generic
     DEPLOY_TYPE         : 'docker',                 // default of the DEPLOY_TYPE parameter: docker | iis | none (none = CI + security only)
     DEFAULT_ENVIRONMENT : 'dev',                    // dev | staging   (webhook builds always use this one; production is never the default)
 
     // ======================= 2. SOURCE CONTROL =======================
-    REPO_URL            : 'https://github.com/AbhishekChauhan1101/devsecops-demo-app.git',    // https://github.com/<org>/<repo>.git  or  https://bitbucket.org/<ws>/<repo>.git
+    REPO_URL            : 'YOUR_REPOSITORY_URL',    // https://github.com/<org>/<repo>.git  or  https://bitbucket.org/<ws>/<repo>.git
     BRANCH              : 'main',
-    GIT_CREDENTIALS_ID  : '',        // Jenkins credential (Username+token / SSH key). '' = public repo
+    GIT_CREDENTIALS_ID  : 'git-credentials',        // Jenkins credential (Username+token / SSH key). '' = public repo
     USE_JOB_SCM         : false,                    // true = this Jenkinsfile comes from "Pipeline script from SCM" and THAT checkout is built
     SCRIPTS_REPO_URL    : '',                       // optional: central repo that contains the scripts/ folder (instead of copying it)
     SCRIPTS_REPO_BRANCH : 'main',
     SCRIPTS_REPO_CRED_ID: '',
 
     // ======================= 3. TRIGGERS =======================
-    WEBHOOK_TOKEN_CRED_ID: 'webhook-token',         // "Secret text" credential holding the Generic Webhook Trigger token
+    WEBHOOK_TOKEN_CRED_ID: 'webhook-token',         // ONLY for the optional Generic Webhook Trigger (Bitbucket / token webhooks): "Secret text" credential
     POLL_SCM_CRON        : '',                      // fallback polling, e.g. 'H H/6 * * *'. '' = disabled (use the webhook)
 
     // ======================= 4. FEATURE SWITCHES (what this application uses) =======================
     ENABLE_TESTS        : true,
-    ENABLE_SONARQUBE    : false,
-    ENABLE_OWASP        : false,
-    ENABLE_TRIVY        : false,
+    ENABLE_SONARQUBE    : true,
+    ENABLE_OWASP        : true,
+    ENABLE_TRIVY        : true,
 
     // ======================= 5. BUILD =======================
     INSTALL_COMMAND     : '',                       // optional custom command; overrides the built-in restore/install
@@ -181,7 +181,7 @@ import groovy.transform.Field
 
     // ======================= 16. PIPELINE =======================
     TIMEOUT_MINUTES     : 90,
-    KEEP_BUILDS         : 30,
+    KEEP_BUILDS         : '30',                     // build history to keep (text)
     CLEAN_WORKSPACE     : true,
 
     // ======================= 17. PER-ENVIRONMENT OVERRIDES =======================
@@ -194,6 +194,10 @@ import groovy.transform.Field
         production : [:]
     ]
 ]
+
+// Choices of the build parameters (first entry = default). Computed here because the pipeline { } block only accepts simple expressions.
+@Field List DEPLOY_TYPE_CHOICES = (CFG.DEPLOY_TYPE == 'iis') ? ['iis', 'docker', 'none'] : ((CFG.DEPLOY_TYPE == 'none') ? ['none', 'docker', 'iis'] : ['docker', 'iis', 'none'])
+@Field List ENVIRONMENT_CHOICES = (CFG.DEFAULT_ENVIRONMENT == 'staging') ? ['staging', 'dev', 'production'] : ['dev', 'staging', 'production']
 
 // Runtime state (filled while the pipeline runs - do not edit)
 @Field Map EFF = [:]        // effective configuration = CFG + overrides of the selected environment
@@ -211,38 +215,45 @@ pipeline {
         disableConcurrentBuilds()
         timestamps()
         timeout(time: CFG.TIMEOUT_MINUTES, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: CFG.KEEP_BUILDS.toString()))
+        buildDiscarder(logRotator(numToKeepStr: CFG.KEEP_BUILDS))
     }
 
-    // GitHub / Bitbucket webhook (token in a Jenkins credential) + optional low-frequency SCM polling as fallback.
-    // URL: https://<jenkins>/generic-webhook-trigger/invoke?token=<token>
+    // WEBHOOK TRIGGER - works out of the box for GitHub (GitHub plugin, webhook URL: https://<jenkins>/github-webhook/)
+    // + optional low-frequency SCM polling as a fallback (POLL_SCM_CRON, '' = off).
+    //
+    // Bitbucket or token-protected webhooks: install the "Generic Webhook Trigger" plugin, then REPLACE githubPush()
+    // below with the GenericTrigger(...) block that is commented out right after this block.
     triggers {
-        GenericTrigger(
-            genericVariables: [
-                [key: 'WH_GITHUB_REF',      value: '$.ref',                     expressionType: 'JSONPath', defaultValue: ''],  // GitHub push
-                [key: 'WH_BB_CLOUD_BRANCH', value: '$.push.changes[0].new.name', expressionType: 'JSONPath', defaultValue: ''],  // Bitbucket Cloud push
-                [key: 'WH_BB_SERVER_REF',   value: '$.changes[0].ref.id',        expressionType: 'JSONPath', defaultValue: '']   // Bitbucket Server / DC push
-            ],
-            tokenCredentialId: CFG.WEBHOOK_TOKEN_CRED_ID,
-            causeString: 'Webhook push to ' + CFG.BRANCH,
-            printContributedVariables: false,
-            printPostContent: false,
-            silentResponse: false,
-            shouldNotFlattern: true,
-            regexpFilterText: '$WH_GITHUB_REF$WH_BB_CLOUD_BRANCH$WH_BB_SERVER_REF',
-            regexpFilterExpression: '^(refs/heads/)?\\Q' + CFG.BRANCH + '\\E$'
-        )
+        githubPush()
         pollSCM(CFG.POLL_SCM_CRON)
     }
+    // triggers {
+    //     GenericTrigger(
+    //         genericVariables: [
+    //             [key: 'WH_GITHUB_REF',      value: '$.ref',                     expressionType: 'JSONPath', defaultValue: ''],
+    //             [key: 'WH_BB_CLOUD_BRANCH', value: '$.push.changes[0].new.name', expressionType: 'JSONPath', defaultValue: ''],
+    //             [key: 'WH_BB_SERVER_REF',   value: '$.changes[0].ref.id',        expressionType: 'JSONPath', defaultValue: '']
+    //         ],
+    //         tokenCredentialId: CFG.WEBHOOK_TOKEN_CRED_ID,
+    //         causeString: 'Webhook push',
+    //         printContributedVariables: false,
+    //         printPostContent: false,
+    //         silentResponse: false,
+    //         shouldNotFlattern: true,
+    //         regexpFilterText: '$WH_GITHUB_REF$WH_BB_CLOUD_BRANCH$WH_BB_SERVER_REF',
+    //         regexpFilterExpression: '^(refs/heads/)?main$'      // put your branch here
+    //     )
+    //     pollSCM(CFG.POLL_SCM_CRON)
+    // }
 
     parameters {
         choice(name: 'ACTION', choices: ['deploy', 'rollback', 'discover-iis'],
                description: 'deploy = full pipeline.  rollback = restore the previous version (no build, no scans).  discover-iis = list IIS sites, paths and pools on the Windows agent (read-only).')
         choice(name: 'DEPLOY_TYPE',
-               choices: (CFG.DEPLOY_TYPE == 'iis') ? ['iis', 'docker', 'none'] : ((CFG.DEPLOY_TYPE == 'none') ? ['none', 'docker', 'iis'] : ['docker', 'iis', 'none']),
+               choices: DEPLOY_TYPE_CHOICES,
                description: 'docker = container deployment, iis = .NET to Windows IIS, none = build + security checks only.')
         choice(name: 'ENVIRONMENT',
-               choices: (CFG.DEFAULT_ENVIRONMENT == 'staging') ? ['staging', 'dev', 'production'] : ['dev', 'staging', 'production'],
+               choices: ENVIRONMENT_CHOICES,
                description: 'Target environment. Production needs CONFIRM_PRODUCTION and a manual approval.')
         booleanParam(name: 'RUN_TESTS',      defaultValue: true, description: 'Run the tests')
         booleanParam(name: 'RUN_SONARQUBE',  defaultValue: true, description: 'Run SonarQube analysis (only if ENABLE_SONARQUBE is true in the config)')
@@ -269,7 +280,10 @@ pipeline {
 
         // ================== CI + SECURITY  (Linux agent) ==================
         stage('CI and Security (Linux agent)') {
-            when { beforeAgent true; expression { params.ACTION == 'deploy' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'deploy' }
+            }
             agent { label EFF.AGENT_BUILD }
             stages {
 
@@ -364,7 +378,10 @@ pipeline {
 
         // ================== DOCKER DEPLOYMENT (Linux agent) ==================
         stage('Deploy - Docker (Linux agent)') {
-            when { beforeAgent true; expression { params.ACTION == 'deploy' && params.DEPLOY_TYPE == 'docker' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'deploy' && params.DEPLOY_TYPE == 'docker' }
+            }
             agent { label EFF.AGENT_DOCKER }
             stages {
 
@@ -424,7 +441,10 @@ pipeline {
 
         // ================== IIS DEPLOYMENT (Windows agent) ==================
         stage('Deploy - IIS (Windows agent)') {
-            when { beforeAgent true; expression { params.ACTION == 'deploy' && params.DEPLOY_TYPE == 'iis' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'deploy' && params.DEPLOY_TYPE == 'iis' }
+            }
             agent { label EFF.AGENT_IIS }
             stages {
 
@@ -469,7 +489,10 @@ pipeline {
 
         // ================== MANUAL ROLLBACK (ACTION = rollback) ==================
         stage('Rollback - Docker') {
-            when { beforeAgent true; expression { params.ACTION == 'rollback' && params.DEPLOY_TYPE == 'docker' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'rollback' && params.DEPLOY_TYPE == 'docker' }
+            }
             agent { label EFF.AGENT_DOCKER }
             steps {
                 script {
@@ -485,7 +508,10 @@ pipeline {
         }
 
         stage('Rollback - IIS') {
-            when { beforeAgent true; expression { params.ACTION == 'rollback' && params.DEPLOY_TYPE == 'iis' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'rollback' && params.DEPLOY_TYPE == 'iis' }
+            }
             agent { label EFF.AGENT_IIS }
             steps {
                 script {
@@ -502,7 +528,10 @@ pipeline {
 
         // ================== IIS DISCOVERY (ACTION = discover-iis, read-only) ==================
         stage('IIS Discovery (Windows agent)') {
-            when { beforeAgent true; expression { params.ACTION == 'discover-iis' } }
+            when {
+                beforeAgent true
+                expression { params.ACTION == 'discover-iis' }
+            }
             agent { label EFF.AGENT_IIS }
             steps {
                 script {
@@ -589,7 +618,7 @@ def initialize() {
 
 def configProblems() {
     List p = []
-    List required = ['APP_NAME', 'AGENT_BUILD', 'WEBHOOK_TOKEN_CRED_ID']
+    List required = ['APP_NAME', 'AGENT_BUILD']
     if (!EFF.USE_JOB_SCM) { required << 'REPO_URL' << 'BRANCH' }
     String dt = params.DEPLOY_TYPE
     if (params.ACTION == 'discover-iis') { dt = 'discover'; required << 'AGENT_IIS' }
