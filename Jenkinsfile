@@ -25,15 +25,15 @@ import groovy.transform.Field
 @Field Map CFG = [
 
     // ======================= 1. APPLICATION =======================
-    APP_NAME            : 'my-app',                 // letters, digits, . _ -   (used for names, backups, state folders)
+    APP_NAME            : 'devsecops-demo',                 // letters, digits, . _ -   (used for names, backups, state folders)
     APP_TYPE            : 'auto',                   // auto | dotnet | node | python | docker | generic
     DEPLOY_TYPE         : 'docker',                 // default of the DEPLOY_TYPE parameter: docker | iis | none (none = CI + security only)
     DEFAULT_ENVIRONMENT : 'dev',                    // dev | staging   (webhook builds always use this one; production is never the default)
 
     // ======================= 2. SOURCE CONTROL =======================
-    REPO_URL            : 'YOUR_REPOSITORY_URL',    // https://github.com/<org>/<repo>.git  or  https://bitbucket.org/<ws>/<repo>.git
+    REPO_URL            : 'https://github.com/AbhishekChauhan1101/devsecops-demo-app.git',    // https://github.com/<org>/<repo>.git  or  https://bitbucket.org/<ws>/<repo>.git
     BRANCH              : 'main',
-    GIT_CREDENTIALS_ID  : 'git-credentials',        // Jenkins credential (Username+token / SSH key). '' = public repo
+    GIT_CREDENTIALS_ID  : '',        // Jenkins credential (Username+token / SSH key). '' = public repo
     USE_JOB_SCM         : false,                    // true = this Jenkinsfile comes from "Pipeline script from SCM" and THAT checkout is built
     SCRIPTS_REPO_URL    : '',                       // optional: central repo that contains the scripts/ folder (instead of copying it)
     SCRIPTS_REPO_BRANCH : 'main',
@@ -45,9 +45,9 @@ import groovy.transform.Field
 
     // ======================= 4. FEATURE SWITCHES (what this application uses) =======================
     ENABLE_TESTS        : true,
-    ENABLE_SONARQUBE    : true,
-    ENABLE_OWASP        : true,
-    ENABLE_TRIVY        : true,
+    ENABLE_SONARQUBE    : false,
+    ENABLE_OWASP        : false,
+    ENABLE_TRIVY        : false,
 
     // ======================= 5. BUILD =======================
     INSTALL_COMMAND     : '',                       // optional custom command; overrides the built-in restore/install
