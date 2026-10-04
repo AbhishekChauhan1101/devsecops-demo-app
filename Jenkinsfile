@@ -102,8 +102,8 @@ import groovy.transform.Field
     DOCKER_BUILD_CONTEXT      : '.',
     DOCKER_IMAGE        : '',                       // image name without registry. Empty = APP_NAME
     DOCKER_CONTAINER    : '',                       // container name. Empty = APP_NAME
-    DOCKER_HOST_PORT    : '8080',                   // '' = do not publish a port
-    DOCKER_CONTAINER_PORT: '8080',
+    DOCKER_HOST_PORT    : '5000',                   // '' = do not publish a port
+    DOCKER_CONTAINER_PORT: '5000',
     DOCKER_NETWORK      : '',
     DOCKER_BUILD_ARGS   : '',                       // e.g. '--build-arg BUILD_CONFIGURATION=Release'   (never pass secrets)
     DOCKER_EXTRA_RUN_ARGS: '',                      // e.g. '--memory 512m --cpus 1'
