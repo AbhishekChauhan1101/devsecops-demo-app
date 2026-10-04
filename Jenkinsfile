@@ -41,7 +41,7 @@ import groovy.transform.Field
 
     // ======================= 3. TRIGGERS =======================
     WEBHOOK_TOKEN_CRED_ID: 'webhook-token',         // ONLY for the optional Generic Webhook Trigger (Bitbucket / token webhooks): "Secret text" credential
-    POLL_SCM_CRON        : '',                      // fallback polling, e.g. 'H H/6 * * *'. '' = disabled (use the webhook)
+    POLL_SCM_CRON        : 'H/2 * * * *',                      // fallback polling, e.g. 'H H/6 * * *'. '' = disabled (use the webhook)
 
     // ======================= 4. FEATURE SWITCHES (what this application uses) =======================
     ENABLE_TESTS        : true,
