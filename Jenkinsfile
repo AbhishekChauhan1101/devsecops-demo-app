@@ -99,7 +99,7 @@ import groovy.transform.Field
 
     // ======================= 10. DOCKER DEPLOYMENT =======================
     DOCKERFILE_PATH     : 'Dockerfile',
-    DOCKER_CONTEXT      : '.',
+    DOCKER_BUILD_CONTEXT      : '.',
     DOCKER_IMAGE        : '',                       // image name without registry. Empty = APP_NAME
     DOCKER_CONTAINER    : '',                       // container name. Empty = APP_NAME
     DOCKER_HOST_PORT    : '8080',                   // '' = do not publish a port
